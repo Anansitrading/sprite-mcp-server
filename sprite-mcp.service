@@ -1,0 +1,29 @@
+[Unit]
+Description=Sprite MCP Server
+Documentation=https://github.com/davidkiama/sprite-mcp-server
+After=network.target
+
+[Service]
+Type=simple
+User=sprite
+Group=sprite
+WorkingDirectory=/home/sprite/sprite-mcp-server
+Environment=NODE_ENV=production
+Environment=PORT=3847
+Environment=SPRITE_BIN=/home/sprite/.local/bin/sprite
+ExecStart=/usr/bin/node dist/http-server.js
+Restart=on-failure
+RestartSec=10
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=sprite-mcp
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/sprite/.sprites
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
