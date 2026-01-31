@@ -12,71 +12,236 @@ Works with Claude.ai, Claude Desktop, Claude Code, VS Code, and any MCP-compatib
 - **File transfer** - Push/pull files to/from remote sprites
 - **Session management** - List, attach, kill sessions
 
-## Quick Deploy to Your Server
+---
+
+## Windows Setup (Claude Desktop / Claude Code)
+
+### Prerequisites
+
+- **Node.js 20+** - Download from [nodejs.org](https://nodejs.org/)
+- **Git** - Download from [git-scm.com](https://git-scm.com/download/win)
+- **Sprite CLI** - Get your token from [sprites.dev](https://sprites.dev)
+
+### Step 1: Install Sprite CLI
+
+Download and install the Sprite CLI for Windows:
+
+```powershell
+# Using PowerShell (run as Administrator)
+irm https://sprites.dev/install.ps1 | iex
+```
+
+Or download manually from [sprites.dev/downloads](https://sprites.dev/downloads).
+
+### Step 2: Authenticate with Sprite
+
+Get your API token from the Sprites dashboard, then:
+
+```powershell
+# Authenticate with your token
+sprite auth setup --token "your-org/org-id/token-id/token-value"
+
+# Or use interactive login (opens browser)
+sprite login
+```
+
+Verify it works:
+
+```powershell
+sprite list
+```
+
+### Step 3: Clone and Build the MCP Server
+
+```powershell
+# Clone the repository
+git clone https://github.com/Anansitrading/sprite-mcp-server.git
+cd sprite-mcp-server
+
+# Install dependencies
+npm install
+
+# Build the server
+npm run build
+```
+
+### Step 4: Find Your Sprite CLI Path
+
+```powershell
+# Find where sprite is installed
+where sprite
+```
+
+This typically returns something like:
+- `C:\Users\YourName\.local\bin\sprite.exe`
+- `C:\Users\YourName\AppData\Local\Programs\sprite\sprite.exe`
+
+**Note this path** - you'll need it for configuration.
+
+### Step 5: Configure Claude Desktop
+
+Edit your Claude Desktop config file:
+
+**Location:** `%APPDATA%\Claude\claude_desktop_config.json`
+
+Open it with:
+```powershell
+notepad "$env:APPDATA\Claude\claude_desktop_config.json"
+```
+
+Add this configuration (replace paths with your actual paths):
+
+```json
+{
+  "mcpServers": {
+    "sprite": {
+      "command": "node",
+      "args": ["C:\\Users\\YourName\\sprite-mcp-server\\dist\\index.js"],
+      "env": {
+        "SPRITE_BIN": "C:\\Users\\YourName\\.local\\bin\\sprite.exe"
+      }
+    }
+  }
+}
+```
+
+**Important:** Use double backslashes (`\\`) in paths or forward slashes (`/`).
+
+### Step 6: Restart Claude Desktop
+
+1. Fully quit Claude Desktop (check system tray)
+2. Reopen Claude Desktop
+3. Look for the hammer icon (🔨) indicating MCP tools are available
+
+### Step 7: Test It
+
+Ask Claude:
+- "List my sprites"
+- "Execute `ls -la` on my sprite"
+- "Create a checkpoint"
+
+---
+
+## Claude Code Setup (Windows)
+
+For Claude Code CLI, add to your settings:
+
+```powershell
+# Open Claude Code settings
+claude mcp add sprite -- node "C:\Users\YourName\sprite-mcp-server\dist\index.js"
+```
+
+Or edit `~/.claude/settings.json`:
+
+```json
+{
+  "mcpServers": {
+    "sprite": {
+      "command": "node",
+      "args": ["C:\\Users\\YourName\\sprite-mcp-server\\dist\\index.js"],
+      "env": {
+        "SPRITE_BIN": "C:\\Users\\YourName\\.local\\bin\\sprite.exe"
+      }
+    }
+  }
+}
+```
+
+---
+
+## Linux/macOS Setup
+
+### Prerequisites
+
+- Node.js 20+
+- Sprite CLI configured with credentials
+
+### Quick Start
+
+```bash
+# Clone & build
+git clone https://github.com/Anansitrading/sprite-mcp-server.git
+cd sprite-mcp-server
+npm install
+npm run build
+
+# Authenticate with Sprite
+sprite login
+# or
+sprite auth setup --token "your-token"
+
+# Test
+sprite list
+```
+
+### Claude Desktop Configuration
+
+**macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
+**Linux:** `~/.config/Claude/claude_desktop_config.json`
+
+```json
+{
+  "mcpServers": {
+    "sprite": {
+      "command": "node",
+      "args": ["/path/to/sprite-mcp-server/dist/index.js"],
+      "env": {
+        "SPRITE_BIN": "/home/youruser/.local/bin/sprite"
+      }
+    }
+  }
+}
+```
+
+### Claude Code Configuration
+
+```bash
+claude mcp add sprite -- node /path/to/sprite-mcp-server/dist/index.js
+```
+
+---
+
+## Server Deployment (for Claude.ai web)
+
+For hosting your own MCP server accessible from claude.ai:
 
 ### Prerequisites
 
 - Node.js 20+
 - A domain pointing to your server (for HTTPS)
-- Sprite CLI configured with credentials
+- Caddy or nginx for reverse proxy
 
-### 1. Clone & Install
+### Deploy
 
 ```bash
-git clone https://github.com/davidkiama/sprite-mcp-server.git
+# Clone & build
+git clone https://github.com/Anansitrading/sprite-mcp-server.git
 cd sprite-mcp-server
 npm install
 npm run build
-```
 
-### 2. Configure Environment
-
-```bash
+# Configure
 cp .env.example .env
-# Edit .env with your settings
-```
+# Edit .env:
+#   PORT=3847
+#   SPRITE_BIN=/home/sprite/.local/bin/sprite
 
-```env
-PORT=3847
-SPRITE_BIN=/path/to/sprite  # Usually ~/.local/bin/sprite
-```
-
-### 3. Run with systemd (Recommended)
-
-```bash
-# Copy service file
+# Run with systemd
 sudo cp sprite-mcp.service /etc/systemd/system/
-
-# Edit the service file to set your paths
-sudo nano /etc/systemd/system/sprite-mcp.service
-
-# Enable and start
 sudo systemctl daemon-reload
 sudo systemctl enable sprite-mcp
 sudo systemctl start sprite-mcp
-
-# Check status
-sudo systemctl status sprite-mcp
 ```
 
-### 4. Set Up Reverse Proxy (Caddy)
+### Caddy Reverse Proxy
 
-```bash
-# Install Caddy if needed
-sudo apt install -y caddy
-
-# Add to /etc/caddy/Caddyfile
-echo '
+```caddyfile
 mcp.yourdomain.com {
     reverse_proxy localhost:3847
 }
-' | sudo tee -a /etc/caddy/Caddyfile
-
-# Reload Caddy
-sudo systemctl reload caddy
 ```
 
-### 5. Connect to Claude.ai
+### Connect to Claude.ai
 
 1. Go to [claude.ai/settings/integrations](https://claude.ai/settings/integrations)
 2. Add MCP Server:
@@ -84,18 +249,7 @@ sudo systemctl reload caddy
    - **URL**: `https://mcp.yourdomain.com/sse`
 3. Test by asking Claude: "List my sprites"
 
-## Local Development
-
-```bash
-# Run stdio server (for Claude Code/Desktop)
-npm start
-
-# Run HTTP/SSE server (for claude.ai)
-npm run start:http
-
-# Development mode with hot reload
-npm run dev
-```
+---
 
 ## MCP Tools
 
@@ -122,6 +276,53 @@ This server uses **MCP Apps** to provide interactive interfaces:
 
 These render directly in the Claude conversation when using supported clients.
 
+## Troubleshooting
+
+### Windows: "sprite is not recognized"
+
+Add Sprite to your PATH or use the full path in `SPRITE_BIN`:
+
+```powershell
+# Find sprite location
+where sprite
+
+# Add to PATH (PowerShell, run as admin)
+$env:Path += ";C:\Users\YourName\.local\bin"
+[Environment]::SetEnvironmentVariable("Path", $env:Path, [EnvironmentVariableTarget]::User)
+```
+
+### Windows: "ENOENT" or "spawn error"
+
+- Ensure all paths use double backslashes or forward slashes
+- Verify the `dist/index.js` file exists (run `npm run build` first)
+- Check that `SPRITE_BIN` points to the actual `.exe` file
+
+### "Sprite CLI not authenticated"
+
+```bash
+# Re-authenticate
+sprite login
+
+# Or with token
+sprite auth setup --token "your-token"
+
+# Verify
+sprite list
+```
+
+### Check server health
+
+```bash
+# If running HTTP server
+curl http://localhost:3847/health
+```
+
+### Test MCP handshake
+
+```bash
+echo '{"jsonrpc":"2.0","method":"tools/list","params":{},"id":1}' | npm start
+```
+
 ## Architecture
 
 ```
@@ -142,37 +343,6 @@ These render directly in the Claude conversation when using supported clients.
 ├─────────────────────────────────────────────────────────┤
 │                 Sprites API / VMs                        │
 └─────────────────────────────────────────────────────────┘
-```
-
-## Troubleshooting
-
-### Check if server is running
-```bash
-curl http://localhost:3847/health
-# Should return: {"status":"ok","server":"sprite-mcp","version":"1.0.0"}
-```
-
-### Check logs
-```bash
-# If using systemd
-journalctl -u sprite-mcp -f
-
-# If running directly
-npm run start:http 2>&1 | tee mcp.log
-```
-
-### Test MCP handshake
-```bash
-echo '{"jsonrpc":"2.0","method":"tools/list","params":{},"id":1}' | npm start
-```
-
-### Sprite CLI not found
-```bash
-# Find sprite binary
-which sprite
-
-# Set in .env
-SPRITE_BIN=$(which sprite)
 ```
 
 ## License
